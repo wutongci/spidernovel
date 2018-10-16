@@ -58,16 +58,17 @@ func getInput() string {
   只支持qu.la小说站下载，例如 https://www.qu.la/book/3987/
  */
 func getNovel(bookid string){
-	url := "https://www.qu.la/book/"+bookid+"/"
+	domainUrl := "https://www.qu.la"
+	chapterUrl := domainUrl+"/book/"+bookid
 	createFile("./output/"+bookid)
-	charpts := getChapters(url)
+	charpts := getChapters(chapterUrl)
 	limitChan := make(chan int, 10)
 	cacheChan := make(chan string, 10)
 	var wg sync.WaitGroup
 	for _, charpt := range charpts {
 		limitChan <- 1
 		wg.Add(1)
-		go SpiderProcessor(cacheChan, url+charpt.URI, &wg)
+		go SpiderProcessor(cacheChan, chapterUrl+"/"+charpt.URI, &wg)
 		wg.Add(1)
 		go WriterProcessor(bookid,cacheChan, limitChan, &wg)
 	}
@@ -76,6 +77,7 @@ func getNovel(bookid string){
 
 func mergeNovel(bookid string)  {
 	rootPath := "output/"+bookid
+	createFile("mergeoutput")
 	outFileName := "./mergeoutput/merge_result_"+bookid+".txt"
 	outFile, openErr := os.OpenFile(outFileName, os.O_CREATE|os.O_WRONLY, 0600)
 	if openErr != nil {

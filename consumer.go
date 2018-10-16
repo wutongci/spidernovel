@@ -20,7 +20,6 @@ func WriteWithFileWrite(name, content string) {
 }
 func SpiderProcessor(cacheChan chan string, url string, wg *sync.WaitGroup) error {
 	defer wg.Done()
-
 	content := getContents(url)
 	if content == ""{
 		return nil

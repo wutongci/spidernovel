@@ -7,7 +7,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/axgle/mahonia"
 	"strings"
-	"fmt"
 )
 
 type (
@@ -48,7 +47,6 @@ func getContents(contentUrl string) string {
 		}
 	})
 	if len(title)== 0 {
-		fmt.Println(contentUrl,doc)
 		return ""
 	}
 	return title+"==="+title + "\r\n"+ strings.Join(contents, "")
