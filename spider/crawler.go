@@ -1,25 +1,46 @@
-package main
+package spider
 
 import (
-	"bytes"
-	"io/ioutil"
 	"net/http"
+	"io/ioutil"
+	"bytes"
+	"log"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/axgle/mahonia"
 	"strings"
 )
 
-type (
-	Chapter struct {
-		Index int
-		Name  string
-		URI   string
+func GetHtmlDocument(url string, charset string) (*goquery.Document, error) {
+	res, err := http.Get(url)
+	if err != nil {
+		log.Fatalln(err.Error())
 	}
-)
-func getChapters(charterUrl string) []Chapter {
-	doc, err := getHtmlDocument(charterUrl, "uft-8")
-	CheckErr(err)
-	chapters := []Chapter{}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		log.Fatalln("Http错误码:%d", res.StatusCode)
+	}
+	responseString, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	if charset == "gbk" {
+		decoder := mahonia.NewDecoder("GB18030")
+		decodedString := decoder.ConvertString(string(responseString))
+		responseString = []byte(decodedString)
+	}
+	decodeReader := bytes.NewReader(responseString)
+	doc, err := goquery.NewDocumentFromReader(decodeReader)
+	return doc, err
+}
+
+/**
+	采集小说章节网址
+ */
+func spiderChapterUrl(url string)(chapters []Chapter){
+	doc, err := GetHtmlDocument(url, "uft-8")
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
 	doc.Find("#list").First().Find("dd").Each(func(i int, s *goquery.Selection) {
 		chapter := Chapter{}
 		chapter.Index = i
@@ -30,9 +51,14 @@ func getChapters(charterUrl string) []Chapter {
 	return chapters
 }
 
+/**
+采集章节内容
+ */
 func getContents(contentUrl string) string {
-	doc, err := getHtmlDocument(contentUrl, "uft-8")
-	CheckErr(err)
+	doc, err := GetHtmlDocument(contentUrl, "uft-8")
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
 	title := doc.Find(".bookname > h1").Text()
 	var contents []string
 	doc.Find("#content").First().Each(func(i int, s *goquery.Selection) {
@@ -50,23 +76,4 @@ func getContents(contentUrl string) string {
 		return ""
 	}
 	return title+"==="+title + "\r\n"+ strings.Join(contents, "")
-}
-
-func getHtmlDocument(url string, charset string) (*goquery.Document, error) {
-	res, err := http.Get(url)
-	CheckErr(err)
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		Error.Fatalln("Http错误码:%d", res.StatusCode)
-	}
-	responseString, err := ioutil.ReadAll(res.Body)
-	CheckErr(err)
-	if charset == "gbk" {
-		decoder := mahonia.NewDecoder("GB18030")
-		decodedString := decoder.ConvertString(string(responseString))
-		responseString = []byte(decodedString)
-	}
-	decodeReader := bytes.NewReader(responseString)
-	doc, err := goquery.NewDocumentFromReader(decodeReader)
-	return doc, err
 }

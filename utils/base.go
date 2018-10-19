@@ -1,10 +1,12 @@
-package main
+package utils
 
 import (
 	"io/ioutil"
 	"log"
 	"os"
 	"fmt"
+	"bufio"
+	"strings"
 )
 
 var (
@@ -38,7 +40,7 @@ func CheckErr(err error) {
 	}
 }
 
-func createFile(filePath string)  error  {
+func CreateFile(filePath string)  error  {
 	if !isExist(filePath) {
 		err := os.MkdirAll(filePath,os.ModePerm)
 		if err ==nil {
@@ -61,4 +63,12 @@ func isExist(path string) bool {
 		return false
 	}
 	return true
+}
+
+func GetInput() string {
+	reader := bufio.NewReader(os.Stdin)
+	input, _ := reader.ReadString('\n')
+	input = strings.Trim(input, "\n")
+	input = strings.Trim(input, "\r")
+	return input
 }
