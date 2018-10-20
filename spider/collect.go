@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"log"
 	"sync"
-	"strings"
 	"regexp"
 	"strconv"
 )
@@ -17,6 +16,15 @@ type (
 		Index int
 		Name  string
 		URI   string
+	}
+	ChapterContent struct {
+		BookId  int
+		Title   string
+		Content string
+		Url     string
+		Sort    int
+		Pre     int
+		Next    int
 	}
 )
 
@@ -32,7 +40,7 @@ func GetBook(){
 		chapters := spiderChapterUrl(book.Url)
 
 		limitChan := make(chan int, 10)
-		cacheChan := make(chan string, 10)
+		cacheChan := make(chan *ChapterContent, 10)
 		var wg sync.WaitGroup
 		for _,chapter := range chapters{
 			if len(chapter.URI) < 18 {//较短的网址过滤
@@ -40,37 +48,41 @@ func GetBook(){
 			}
 			limitChan <- 1
 			wg.Add(1)
-			go SpiderProcessor(cacheChan, domainUrl+chapter.URI, &wg)
+			go SpiderProcessor(book.Id,chapter.Name,cacheChan, domainUrl+chapter.URI, &wg)
 			wg.Add(1)
-			go WriterProcessor(book.Id,chapter,domainUrl+chapter.URI,cacheChan, limitChan, &wg)
+			go WriterProcessor(book.Id,cacheChan, limitChan, &wg)
 		}
 		wg.Wait()
 	}
 }
 
-func SpiderProcessor(cacheChan chan string, url string, wg *sync.WaitGroup) error {
+func SpiderProcessor(bookid int,title string,cacheChan chan *ChapterContent, url string, wg *sync.WaitGroup) error {
 	defer wg.Done()
 	content := getContents(url)
 	if content == ""{
 		return nil
 	}
-	cacheChan <-content
-	return nil
-}
-func WriterProcessor(bookid int,chapter Chapter ,url string,cacheChan chan string, limitChan chan int, wg *sync.WaitGroup) error {
-	defer wg.Done()
-	bodyContent := <-cacheChan
 	reg := regexp.MustCompile(`[\d]+`)
 	ids := reg.FindAllString(url, -1)
 	curid, err := strconv.Atoi(ids[1])
 	if err != nil {
 		log.Fatal(err)
 	}
-	sort := curid
-	pre := curid -1
-	next := curid +1
-	contents := strings.Split(bodyContent,"===")
-	ch := models.Chapter{BookId:bookid, Title:contents[0], Content:contents[1],Volume:" ",Status:0,Sort:sort,Url: url,Pre:pre, Next:next,CreateTime:time.Now(),LastUpdateTime:time.Now()}
+	cacheChan <- &ChapterContent{
+		BookId:bookid,
+		Title:title,
+		Content:content,
+		Url:url,
+		Sort:curid,
+		Pre:curid -1,
+		Next:curid +1,
+	}
+	return nil
+}
+func WriterProcessor(bookid int,cacheChan chan *ChapterContent, limitChan chan int, wg *sync.WaitGroup) error {
+	defer wg.Done()
+	bodyContent := <-cacheChan
+	ch := models.Chapter{BookId:bookid, Title:bodyContent.Title, Content:bodyContent.Content,Volume:" ",Status:0,Sort:bodyContent.Sort,Url: bodyContent.Url,Pre:bodyContent.Pre, Next:bodyContent.Next,CreateTime:time.Now(),LastUpdateTime:time.Now()}
 	models.ChapterAdd(&ch)
 	<-limitChan
 	return nil
