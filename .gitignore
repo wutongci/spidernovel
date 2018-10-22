@@ -12,3 +12,4 @@
 *.out
 spidernovel
 cmd/cmd
+cmd/mergeoutput/

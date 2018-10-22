@@ -76,5 +76,5 @@ func getContents(contentUrl string) string {
 		return ""
 	}
 
-	return title+"==="+title + "\r\n"+ strings.Join(contents, "")
+	return title + "\r\n"+ strings.Join(contents, "")
 }

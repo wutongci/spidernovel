@@ -53,3 +53,17 @@ func GetAllList() (lists []interface{}) {
 	}
 	return  nil
 }
+
+func GetAllConents(bookid int) (lists []interface{})  {
+	var res []orm.Params
+	o := orm.NewOrm()
+	num, err := o.Raw("SELECT content FROM chapter WHERE book_id =? ORDER BY sort ASC",bookid).Values(&res)
+
+	if err == nil && num > 0 {
+		for _, v := range res {
+			lists = append(lists, v)
+		}
+		return lists
+	}
+	return  nil
+}
