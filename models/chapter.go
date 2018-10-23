@@ -1,10 +1,12 @@
 package models
 
 import (
-	"time"
-	"github.com/astaxie/beego/orm"
 	"encoding/json"
+	"github.com/astaxie/beego/orm"
+	"log"
 	"spidernovel/components"
+	"strconv"
+	"time"
 )
 
 type Chapter struct{
@@ -64,6 +66,24 @@ func GetAllConents(bookid int) (lists []interface{})  {
 			lists = append(lists, v)
 		}
 		return lists
+	}
+	return  nil
+}
+
+func GetLastChapterIds(bookid int) (chapterids map[int]int){
+	var maps []orm.Params
+	res := make(map[int]int)
+	o := orm.NewOrm()
+	num, err := o.Raw("SELECT sort FROM chapter WHERE book_id =?",bookid).Values(&maps)
+	if err == nil && num > 0 {
+		for _,vv := range maps {
+			lastchapterid, err := strconv.Atoi(vv["sort"].(string))
+			if err != nil {
+				log.Fatal(err)
+			}
+			res[lastchapterid] = lastchapterid
+		}
+		return res
 	}
 	return  nil
 }

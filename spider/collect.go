@@ -1,17 +1,22 @@
 package spider
 
 import (
-	"spidernovel/models"
 	"fmt"
-	"time"
-	"net/url"
 	"log"
-	"sync"
+	"net/url"
 	"regexp"
+	"spidernovel/models"
 	"strconv"
+	"sync"
+	"time"
 )
 
 type (
+	Book struct {
+		Name string
+		Author string
+		Intro  string
+	}
 	Chapter struct {
 		Index int
 		Name  string
@@ -32,13 +37,14 @@ func GetBook(){
 	fmt.Println("spider start")
 	books, _ := models.GetBookList("status", 0)
 	for _, book := range books{
+		s := spiderBookInfos(book.Url)
 		domainUrls, err := url.Parse(book.Url)
 		if err != nil {
 			log.Fatal(err)
 		}
 		domainUrl := domainUrls.Scheme+"://"+domainUrls.Host+"/"
 		chapters := spiderChapterUrl(book.Url)
-
+		lastchapterids := models.GetLastChapterIds(book.Id)
 		limitChan := make(chan int, 10)
 		cacheChan := make(chan *ChapterContent, 10)
 		var wg sync.WaitGroup
@@ -46,27 +52,34 @@ func GetBook(){
 			if len(chapter.URI) < 18 {//较短的网址过滤
 				continue
 			}
+			url := domainUrl+chapter.URI
+			reg := regexp.MustCompile(`[\d]+`)
+			ids := reg.FindAllString(url, -1)
+			curid, err := strconv.Atoi(ids[1])
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if _,ok := lastchapterids[curid]; ok {
+				fmt.Println(curid )
+				continue
+			}
 			limitChan <- 1
 			wg.Add(1)
-			go SpiderProcessor(book.Id,chapter.Name,cacheChan, domainUrl+chapter.URI, &wg)
+			go SpiderProcessor(book.Id,chapter.Name,curid,cacheChan, url, &wg)
 			wg.Add(1)
 			go WriterProcessor(book.Id,cacheChan, limitChan, &wg)
 		}
 		wg.Wait()
+		models.UpdateBookInfo(book.Id,s)
 	}
 }
 
-func SpiderProcessor(bookid int,title string,cacheChan chan *ChapterContent, url string, wg *sync.WaitGroup) error {
+func SpiderProcessor(bookid int,title string,curid int,cacheChan chan *ChapterContent, url string, wg *sync.WaitGroup) error {
 	defer wg.Done()
 	content := getContents(url)
 	if content == ""{
 		return nil
-	}
-	reg := regexp.MustCompile(`[\d]+`)
-	ids := reg.FindAllString(url, -1)
-	curid, err := strconv.Atoi(ids[1])
-	if err != nil {
-		log.Fatal(err)
 	}
 	cacheChan <- &ChapterContent{
 		BookId:bookid,

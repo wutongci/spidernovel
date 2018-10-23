@@ -1,12 +1,12 @@
 package spider
 
 import (
-	"net/http"
-	"io/ioutil"
 	"bytes"
-	"log"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/axgle/mahonia"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"strings"
 )
 
@@ -31,6 +31,21 @@ func GetHtmlDocument(url string, charset string) (*goquery.Document, error) {
 	decodeReader := bytes.NewReader(responseString)
 	doc, err := goquery.NewDocumentFromReader(decodeReader)
 	return doc, err
+}
+
+func spiderBookInfos(url string) (book []string)  {
+	doc, err := GetHtmlDocument(url, "uft-8")
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	doc.Find("#info").First().Find("h1").Each(func(i int, s *goquery.Selection) {
+		ss := make([]string,3)
+		ss[0] = s.Text()
+		ss[1] = strings.Replace(s.Parent().Find("p").First().Text(),"作  者：","",-1)
+		ss[2] = strings.TrimSpace(doc.Find("#intro").First().Text())
+		book = ss
+	})
+	return book
 }
 
 /**

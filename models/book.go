@@ -1,5 +1,6 @@
 package models
 import (
+	"fmt"
 	"time"
 	"github.com/astaxie/beego/orm"
 )
@@ -8,6 +9,7 @@ type Book struct{
 	Id int
 	Name string
 	Author string
+	Intro string
 	Image string
 	Status int
 	Url string
@@ -30,4 +32,18 @@ func GetBookList(filters ...interface{})([]*Book, int64){
 	total, _ := query.Count()
 	query.OrderBy("id").All(&books)
 	return books, total
+}
+
+func UpdateBookInfo(bookid int,books []string){
+	o := orm.NewOrm()
+	book := Book{Id: bookid}
+	if o.Read(&book) == nil {
+		book.Status = 1
+		book.Name = books[0]
+		book.Intro = books[1]
+		book.Author = books[2]
+		if _, err := o.Update(&book); err == nil {
+			fmt.Println("更新书本成功！")
+		}
+	}
 }
