@@ -17,8 +17,6 @@ type Chapter struct{
 	Volume string
     Url string
 	Sort int
-	Pre int
-	Next int
 	Status int
 	CreateTime time.Time
 	LastUpdateTime time.Time

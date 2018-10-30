@@ -1,8 +1,9 @@
 package models
+
 import (
 	"fmt"
-	"time"
 	"github.com/astaxie/beego/orm"
+	"time"
 )
 
 type Book struct{
@@ -11,6 +12,7 @@ type Book struct{
 	Author string
 	Intro string
 	Image string
+	From  int
 	Status int
 	Url string
 	CreateTime time.Time
@@ -40,8 +42,8 @@ func UpdateBookInfo(bookid int,books []string){
 	if o.Read(&book) == nil {
 		book.Status = 1
 		book.Name = books[0]
-		book.Intro = books[1]
-		book.Author = books[2]
+		book.Author = books[1]
+		book.Intro = books[2]
 		if _, err := o.Update(&book); err == nil {
 			fmt.Println("更新书本成功！")
 		}

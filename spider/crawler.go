@@ -7,7 +7,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
+	"sync"
+	"time"
+	"spidernovel/models"
 )
 
 func GetHtmlDocument(url string, charset string) (*goquery.Document, error) {
@@ -30,66 +32,29 @@ func GetHtmlDocument(url string, charset string) (*goquery.Document, error) {
 	}
 	decodeReader := bytes.NewReader(responseString)
 	doc, err := goquery.NewDocumentFromReader(decodeReader)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
 	return doc, err
 }
 
-func spiderBookInfos(url string) (book []string)  {
-	doc, err := GetHtmlDocument(url, "uft-8")
-	if err != nil {
-		log.Fatalln(err.Error())
+
+func SpiderProcessor(bookid int,title string,content string,curid int,cacheChan chan *ChapterContent, url string, wg *sync.WaitGroup) error {
+	defer wg.Done()
+	cacheChan <- &ChapterContent{
+		BookId:bookid,
+		Title:title,
+		Content:content,
+		Url:url,
+		Sort:curid,
 	}
-	doc.Find("#info").First().Find("h1").Each(func(i int, s *goquery.Selection) {
-		ss := make([]string,3)
-		ss[0] = s.Text()
-		ss[1] = strings.Replace(s.Parent().Find("p").First().Text(),"作  者：","",-1)
-		ss[2] = strings.TrimSpace(doc.Find("#intro").First().Text())
-		book = ss
-	})
-	return book
+	return nil
 }
-
-/**
-	采集小说章节网址
- */
-func spiderChapterUrl(url string)(chapters []Chapter){
-	doc, err := GetHtmlDocument(url, "uft-8")
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-	doc.Find("#list").First().Find("dd").Each(func(i int, s *goquery.Selection) {
-		chapter := Chapter{}
-		chapter.Index = i
-		chapter.Name = strings.Replace(s.Text(),"?","",-1)
-		chapter.URI, _ = s.Find("a").First().Attr("href")
-		chapters = append(chapters, chapter)
-	})
-	return chapters
-}
-
-/**
-采集章节内容
- */
-func getContents(contentUrl string) string {
-	doc, err := GetHtmlDocument(contentUrl, "uft-8")
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-	title := doc.Find(".bookname > h1").Text()
-	var contents []string
-	doc.Find("#content").First().Each(func(i int, s *goquery.Selection) {
-		html, _ := s.Html()
-		html = strings.Replace(html,"\t","",-1)
-		for _, value := range strings.Split(html, "<br/>　　<br/>") {
-			content := strings.Replace(value,"&nbsp;"," ",4)+ "\r\n"
-			content = strings.Replace(content,"<br/>","",-1)
-			content = strings.Replace(content, "Ps:书友们，我是未苍，推荐一款免费小说App，支持小说下载、听书、零广告、多种阅读模式。请您关注微信公众号：dazhuzaiyuedu（长按三秒复制）书友们快关注起来吧！","",-1)
-			content = strings.Replace(content,"<script>chaptererror();</script>", " ", -1)
-			contents = append(contents, content)
-		}
-	})
-	if len(title)== 0 {
-		return ""
-	}
-
-	return title + "\r\n"+ strings.Join(contents, "")
+func WriterProcessor(bookid int,cacheChan chan *ChapterContent, limitChan chan int, wg *sync.WaitGroup) error {
+	defer wg.Done()
+	bodyContent := <-cacheChan
+	ch := models.Chapter{BookId:bookid, Title:bodyContent.Title, Content:bodyContent.Content,Volume:" ",Status:1,Sort:bodyContent.Sort,Url: bodyContent.Url,CreateTime:time.Now(),LastUpdateTime:time.Now()}
+	models.ChapterAdd(&ch)
+	<-limitChan
+	return nil
 }
